@@ -6,7 +6,7 @@ st.markdown(
     """
     <style>
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.recall-marker) {
-        border: 3px solid #000000 !important;
+        border: 6px solid #000000 !important;
         border-radius: 2px;
         padding: 10px 14px;
     }
