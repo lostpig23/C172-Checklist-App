@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.set_page_config(page_title="C172 Checklist", layout="centered")
+st.set_page_config(page_title="C172R&S G1000 Checklist", layout="centered")
 
 CHECKLIST_PARTS = {
     "PART A - GROUND-BASED CHECKLISTS": [
@@ -10,13 +10,13 @@ CHECKLIST_PARTS = {
                 {
                     "subtitle": None,
                     "items": [
-                        ("Aircraft Position", "NO OBSTRUCTIONS"),
-                        ("Fuel Quantity", "SUFFICIENT"),
-                        ("Fuel Drain", "COMPLETE"),
-                        ("Fuel Leaks", "NIL"),
-                        ("Oil Quantity", "SUFFICIENT"),
-                        ("Oil Leaks", "NIL"),
-                        ("Windows", "CLEAN"),
+                        ("1.", "Aircraft Position", "NO OBSTRUCTIONS"),
+                        ("2.", "Fuel Quantity", "SUFFICIENT"),
+                        ("3.", "Fuel Drain", "COMPLETE"),
+                        ("4.", "Fuel Leaks", "NIL"),
+                        ("5.", "Oil Quantity", "SUFFICIENT"),
+                        ("6.", "Oil Leaks", "NIL"),
+                        ("7.", "Windows", "CLEAN"),
                     ],
                 }
             ],
@@ -28,84 +28,339 @@ CHECKLIST_PARTS = {
                 {
                     "subtitle": "INITIAL CHECKS",
                     "items": [
-                        ("Rudder Gust Lock", "REMOVED"),
-                        ("Pitot Tube Cover", "REMOVED"),
-                        ("Baggage Compartment Door", "SECURE"),
-                        ("POH, GCRG, QRH", "ON BOARD, CURRENT"),
-                        ("Maps & Charts", "ON BOARD, CURRENT"),
-                        ("STBY BATT", "OFF"),
-                        ("MASTER Switch (ALT & BAT)", "OFF"),
-                        ("AVIONICS Switch (BUS 1 & BUS 2)", "OFF"),
-                        ("Cockpit Lighting", "OFF"),
-                        ("External Lighting", "BEACON ON (Other Lights Off)"),
-                        ("FUEL PUMP Switch", "OFF"),
-                        ("PITOT HEAT Switch", "OFF"),
-                        ("CABIN PWR 12V Switch", "OFF"),
-                        ("MAGNETOS Switch", "OFF, KEY REMOVED"),
-                        ("Circuit Breakers", "IN"),
-                        ("ALT STATIC AIR Valve", "OFF"),
-                        ("Throttle Control", "IDLE"),
-                        ("Mixture Control", "IDLE CUT-OFF"),
-                        ("Flaps", "UP"),
-                        ("CABIN HEAT Control Knob", "OFF"),
-                        ("CABIN AIR Control Knob", "ON"),
-                        ("FUEL SELECTOR Valve", "BOTH"),
-                        ("FUEL SHUT-OFF Valve", "ON"),
+                        ("1.", "Rudder Gust Lock", "REMOVED"),
+                        ("2.", "Pitot Tube Cover", "REMOVED"),
+                        ("3.", "Baggage Compartment Door", "SECURE"),
+                        ("4.", "POH, GCRG, QRH", "ON BOARD, CURRENT"),
+                        ("5.", "Maps & Charts", "ON BOARD, CURRENT"),
+                        ("6.", "STBY BATT", "OFF"),
+                        ("7.", "MASTER Switch (ALT & BAT)", "OFF"),
+                        ("8.", "AVIONICS Switch (BUS 1 & BUS 2)", "OFF"),
+                        ("9.", "Cockpit Lighting", "OFF"),
+                        ("10.", "External Lighting", "BEACON ON (Other Lights Off)"),
+                        ("11.", "FUEL PUMP Switch", "OFF"),
+                        ("12.", "PITOT HEAT Switch", "OFF"),
+                        ("13.", "CABIN PWR 12V Switch", "OFF"),
+                        ("14.", "MAGNETOS Switch", "OFF, KEY REMOVED"),
+                        ("15.", "Circuit Breakers", "IN"),
+                        ("16.", "ALT STATIC AIR Valve", "OFF"),
+                        ("17.", "Throttle Control", "IDLE"),
+                        ("18.", "Mixture Control", "IDLE CUT-OFF"),
+                        ("19.", "Flaps", "UP"),
+                        ("20.", "CABIN HEAT Control Knob", "OFF"),
+                        ("21.", "CABIN AIR Control Knob", "ON"),
+                        ("22.", "FUEL SELECTOR Valve", "BOTH"),
+                        ("23.", "FUEL SHUT-OFF Valve", "ON"),
+                        ("24.", "Fire Extinguisher", "SERVICEABLE"),
+                        ("25.", "MASTER Switch (ALT & BAT)", "ON"),
+                        ("26.", "Primary Flight Display (PFD)", "ON"),
+                        ("27.", "Fuel QTY GAL", "SUFFICIENT"),
+                        ("28.", "LOW FUEL L & R Annunciators", "EXTINGUISHED"),
+                        ("29.", "OIL PRESSURE Annunciator", "ILLUMINATED"),
+                        ("30.", "LOW VACUUM Annunciator", "ILLUMINATED"),
+                        ("31.", "AVIONICS Switch (BUS 1)", "ON"),
+                        ("32.", "Forward Avionics Fan", "AUDIBLE"),
+                        ("33.", "AVIONICS Switch (BUS 1)", "OFF"),
+                        ("34.", "AVIONICS Switch (BUS 2)", "ON"),
+                        ("35.", "Aft Avionics Fan", "AUDIBLE"),
+                        ("36.", "AVIONICS Switch (BUS 2)", "OFF"),
+                        ("37.", "External Lighting & PITOT HEAT Switch", "ON"),
+                        ("38.", "External Lighting & PITOT HEAT", "FUNCTIONAL (Check Externally)"),
+                        ("39.", "External Lighting", "BEACON ON (Other Lights Off)"),
+                        ("40.", "PITOT HEAT Switch", "OFF"),
+                        ("41.", "Flaps", "FULL"),
+                        ("42.", "MASTER Switch (ALT & BAT)", "OFF"),
+                        ("43.", "Circuit Breakers", "IN"),
+                        ("44.", "Control Wheel Lock", "REMOVED"),
+                        ("45.", "Flight Controls", "FULL & FREE MOVEMENT"),
+                        ("46.", "Elevator Trim Control", "FREE & SET FOR TAKEOFF"),
+                    ],
+                },
+                {
+                    "subtitle": "LEFT WING",
+                    "items": [
+                        ("1.", "Surface Condition", "NO ICE OR DAMAGE"),
+                        ("2.", "COMM, GPS Antennas, & OAT Probe", "NO DAMAGE"),
+                        ("3.", "Fuel Filler Cap", "SECURE & VENT CLEAR"),
+                        ("4.", "CABIN AIR Inlets", "CLEAR"),
+                        ("5.", "Wing Strut", "NO DAMAGE"),
+                        ("6.", "Pitot Tube", "NO OBSTRUCTIONS"),
+                        ("7.", "Fuel Tank Vent Opening", "CLEAR"),
+                        ("8.", "Stall Warning Opening", "CLEAR & TESTED"),
+                        ("9.", "LAND & TAXI Lights", "COVER SECURE"),
+                        ("10.", "Leading Edge", "NO ICE OR DAMAGE"),
+                        ("11.", "Wing Tip & Lights", "NO DAMAGE"),
+                        ("12.", "Static Wicks (Two)", "NO DAMAGE"),
+                        ("13.", "Aileron", "SECURE & FREE MOVEMENT"),
+                        ("14.", "Flap", "SECURE & NO DAMAGE"),
+                        ("15.", "Fuel Drain Valves", "NO LEAKS"),
+                    ],
+                },
+                {
+                    "subtitle": "LEFT MAIN GEAR",
+                    "items": [
+                        ("1.", "Main Gear Strut", "NO DAMAGE"),
+                        ("2.", "Main Wheel Tyre", "SERVICEABLE"),
+                        ("3.", "Main Wheel Brake Assembly", "NO DAMAGE OR LEAKS"),
+                    ],
+                },
+                {
+                    "subtitle": "LEFT FUSELAGE",
+                    "items": [
+                        ("1.", "Main Door & Window", "CLEAN & SECURE"),
+                        ("2.", "Baggage Compartment Door", "CLOSED & LATCHED"),
+                        ("3.", "Rear Window", "CLEAN"),
+                    ],
+                },
+                {
+                    "subtitle": "EMPENNAGE",
+                    "items": [
+                        ("1.", "Horizontal & Vertical Stabiliser", "NO ICE OR DAMAGE"),
+                        ("2.", "Elevator & Trim Tab", "SECURE & FREE MOVEMENT"),
+                        ("3.", "Rudder", "SECURE & FREE MOVEMENT"),
+                        ("4.", "Static Wicks (Six)", "NO DAMAGE"),
+                        ("5.", "Tie Down Ring", "NO DAMAGE"),
+                        ("6.", "VOR & ILS Antennas", "NO DAMAGE"),
+                    ],
+                },
+                {
+                    "subtitle": "RIGHT FUSELAGE",
+                    "items": [
+                        ("1.", "Aircraft Belly & Antennas", "NO DAMAGE"),
+                        ("2.", "ELT Antenna", "NO DAMAGE"),
+                        ("3.", "Main Door & Window", "CLEAN & SECURE"),
+                    ],
+                },
+                {
+                    "subtitle": "RIGHT MAIN GEAR",
+                    "items": [
+                        ("1.", "Main Gear Strut", "NO DAMAGE"),
+                        ("2.", "Main Wheel Tyre", "SERVICEABLE"),
+                        ("3.", "Main Wheel Brake Assembly", "NO DAMAGE OR LEAKS"),
+                    ],
+                },
+                {
+                    "subtitle": "RIGHT WING",
+                    "items": [
+                        ("1.", "Fuel Drain Valves", "NO LEAKS"),
+                        ("2.", "Flap", "SECURE & NO DAMAGE"),
+                        ("3.", "Aileron", "SECURE & FREE MOVEMENT"),
+                        ("4.", "Static Wicks (Two)", "NO DAMAGE"),
+                        ("5.", "Wing Tip & Lights", "NO DAMAGE"),
+                        ("6.", "Leading Edge", "NO ICE OR DAMAGE"),
+                        ("7.", "LAND & TAXI Lights", "COVER SECURE"),
+                        ("8.", "Wing Strut", "NO DAMAGE"),
+                        ("9.", "CABIN AIR Inlets", "CLEAR"),
+                        ("10.", "Fuel Filler Cap", "SECURE & VENT CLEAR"),
+                        ("11.", "COMM, GPS Antennas, & OAT Probe", "NO DAMAGE"),
+                        ("12.", "Surface Condition", "NO ICE OR DAMAGE"),
+                    ],
+                },
+                {
+                    "subtitle": "NOSE WHEEL",
+                    "items": [
+                        ("1.", "Fuel Drain Valves", "NO LEAKS"),
+                        ("2.", "Nose Wheel Strut", "INFLATED"),
+                        ("3.", "Torque Link", "NO DAMAGE"),
+                        ("4.", "Shimmy Dampener", "NO DAMAGE OR LEAKS"),
+                        ("5.", "Steering Arms", "SECURE"),
+                        ("6.", "Nose Wheel Tyre", "SERVICEABLE"),
+                        ("7.", "Nose Wheel Area", "NO LEAKS"),
+                    ],
+                },
+                {
+                    "subtitle": "NOSE",
+                    "items": [
+                        ("1.", "CABIN AIR Vent", "NO DAMAGE"),
+                        ("2.", "Engine Cowling", "NO DAMAGE"),
+                        ("3.", "Engine Oil Inspection", "DIPSTICK SECURE & NO LEAKS"),
+                        ("4.", "Engine Cooling Air Inlets", "CLEAR"),
+                        ("5.", "Alternator Belt", "NO DAMAGE & UNDER TENSION"),
+                        ("6.", "Propeller & Spinner", "NO DAMAGE"),
+                        ("7.", "Engine Air Intake Filter", "CLEAR"),
+                        ("8.", "External Power Door", "SECURE"),
+                        ("9.", "Static Source Opening", "CLEAR"),
+                    ],
+                },
+            ],
+            "post_note": "Prior to proceeding to A3.0 PRE-ENTRY INSPECTION, the pilot must perform A15.0 POST-FLIGHT INSPECTION if they intend to leave the aircraft unsupervised.",
+            "footer": "PRE-FLIGHT INSPECTION checklist complete",
+        },
+        {
+            "title": "A3.0 PRE-ENTRY INSPECTION",
+            "subsections": [
+                {
+                    "subtitle": None,
+                    "items": [
+                        ("1.", "Key", "WITHIN COCKPIT, ACCESSIBLE"),
+                        ("2.", "Control Wheel Lock", "REMOVED"),
+                        ("3.", "Parking Brake", "SET"),
+                        ("4.", "Chocks (Three)", "REMOVED"),
+                        ("5.", "Tie Down Ropes (Three)", "REMOVED"),
+                        ("6.", "Pitot Tube Cover", "REMOVED"),
+                        ("7.", "Rudder Gust Lock", "REMOVED"),
+                        ("8.", "Baggage Compartment", "BAGGAGE UNDER CARGO NET, DOOR SECURE"),
                     ],
                 }
             ],
-            "footer": "PRE-FLIGHT INSPECTION checklist continued next page",
+            "footer": "PRE-ENTRY INSPECTION checklist complete",
         },
-    ]
-}
-
-
-def reset_checklist():
-    for key in list(st.session_state.keys()):
-        if key.startswith("chk_"):
-            st.session_state[key] = False
-
-
-st.title("Cessna 172 Checklist")
-st.button("Reset All", on_click=reset_checklist)
-
-for part_title, sections in CHECKLIST_PARTS.items():
-    st.header(part_title)
-
-    for s_idx, section in enumerate(sections):
-        st.subheader(section["title"])
-        total_items = 0
-        completed_items = 0
-
-        for sub_idx, subsection in enumerate(section["subsections"]):
-            if subsection["subtitle"]:
-                st.markdown(
-                    f"**<u>{subsection['subtitle']}</u>**",
-                    unsafe_allow_html=True,
-                )
-
-            for i_idx, (item, action) in enumerate(subsection["items"], start=1):
-                total_items += 1
-                key = f"chk_{s_idx}_{sub_idx}_{i_idx}"
-                col1, col2, col3 = st.columns([5, 4, 1], vertical_alignment="center")
-
-                with col1:
-                    st.markdown(f"**{i_idx}. {item}**")
-                with col2:
-                    st.markdown(
-                        f"<div style='text-align: right; font-weight: bold;'>{action}</div>",
-                        unsafe_allow_html=True,
-                    )
-                with col3:
-                    if st.checkbox("Done", key=key, label_visibility="collapsed"):
-                        completed_items += 1
-
-        if completed_items == total_items and total_items > 0:
-            st.success(section["footer"])
-        else:
-            st.markdown(
-                f"<div style='text-align: center; font-style: italic; margin-top: 8px;'>{section['footer']}</div>",
-                unsafe_allow_html=True,
-            )
-
-        st.divider()
+        {
+            "title": "A4.0 BEFORE START",
+            "note": "During cold weather starting, when performing the STBY BATT test (item 7), the lamp may not illuminate, and the E BUS volts (item 12) may be less than 24 VOLTS. If either of these events occur, after engine start verify the S BATT ammeter shows a positive charge at 1000 RPM or greater. Then prior to takeoff verify the S BATT ammeter shows a charge of less than 0.4 AMPS.",
+            "subsections": [
+                {
+                    "subtitle": None,
+                    "items": [
+                        ("1.", "Pre-Start Up Brief", "COMPLETE"),
+                        ("2.", "Maintenance Release", "ON BOARD, SIGNED, & VALID"),
+                        ("3.", "Passenger Briefing", "COMPLETE (If Required)"),
+                        ("4.", "MASTER Switch (ALT & BAT)", "OFF"),
+                        ("5.", "AVIONICS Switch (BUS 1 & BUS 2)", "OFF"),
+                        ("6.", "External Lighting", "BEACON ON, NAV AS REQUIRED (Other Lights Off)"),
+                        ("7.", "STBY BATT", "TESTED 10 SECONDS (See Note Above)"),
+                        ("8.", "STBY BATT", "ARMED"),
+                        ("9.", "Primary Flight Display", "ON"),
+                        ("10.", "Engine Indicating System", "NO RED X ANNUNCIATIONS"),
+                        ("11.", "M BUS", "1.5 VOLTS MAXIMUM"),
+                        ("12.", "E BUS", "24 VOLTS MINIMUM (See Note Above)"),
+                        ("13.", "S BATT", "DISCHARGING"),
+                        ("14.", "Fuel GAL REM", "CHECKED & SET"),
+                        ("15.", "STBY BATT Annunciator", "ILLUMINATED"),
+                        ("16.", "Seats", "ADJUSTED"),
+                        ("17.", "Seat Belts", "FASTENED"),
+                        ("18.", "Doors", "CLOSED & LOCKED"),
+                        ("19.", "Propeller Area", "CLEAR"),
+                        ("20.", "MASTER Switch (ALT & BAT)", "ON"),
+                        ("21.", "Cockpit Lights", "AS REQUIRED"),
+                        ("22.", "Clearance (Circuits or Airways)", "OBTAINED (If Required)"),
+                    ],
+                }
+            ],
+            "footer": "BEFORE START checklist complete",
+        },
+        {
+            "title": "A5.0 ENGINE START",
+            "caution": "MAKE ONLY THREE START ATTEMPTS OF 10 SECONDS EACH WITH A 20 SECOND COOL DOWN PERIOD BETWEEN EACH ATTEMPT. IF THE ENGINE FAILS TO START, WAIT 10 MINUTES AND REPEAT THIS CYCLE. IF ENGINE STILL DOES NOT START, FIND THE CAUSE BEFORE ATTEMPTING ANOTHER START. NEVER RE-ENGAGE THE STARTER MOTOR UNTIL THE PROPELLER HAS COMPLETELY STOPPED.",
+            "subsections": [
+                {
+                    "subtitle": "NORMAL START (Oil temperature below the green range, or after a failed start)",
+                    "items": [
+                        ("1.", "Mixture Control", "IDLE CUT-OFF"),
+                        ("2.", "Throttle Control", "OPEN 6mm (Approximately)"),
+                        ("3.", "KEY", "INSERTED (Switched To OFF Position)"),
+                        ("4.", "FUEL PUMP Switch", "ON"),
+                        ("5.", "Mixture Control", "FULL RICH"),
+                        ("6.", "FUEL FLOW", "STABLE (Maximum 3 Seconds)"),
+                        ("7.", "Mixture Control", "IDLE CUT-OFF"),
+                        ("8.", "FUEL PUMP Switch", "OFF"),
+                        ("9.", "Propeller Area", "CLEAR"),
+                        ("10.", "Brakes", "ON"),
+                        ("11.", "MAGNETOS Switch", "START (Release Key When Engine Starts)"),
+                        ("12.", "Mixture Control", "FULL RICH (Smoothly Increase As Engine Starts)"),
+                        ("13.", "Throttle Control", "1000 RPM"),
+                        ("14.", "Oil Pressure", "GREEN RANGE (Within 60 Seconds)"),
+                    ],
+                },
+                {
+                    "subtitle": "NORMAL START (Oil temperature within the green range, and first start attempt)",
+                    "items": [
+                        ("1.", "Mixture Control", "IDLE CUT-OFF"),
+                        ("2.", "Throttle Control", "OPEN 6mm (Approximately)"),
+                        ("3.", "KEY", "INSERTED (Switched To OFF Position)"),
+                        ("4.", "Propeller Area", "CLEAR"),
+                        ("5.", "Brakes", "ON"),
+                        ("6.", "MAGNETOS Switch", "START (Release Key When Engine Starts)"),
+                        ("7.", "Mixture Control", "FULL RICH (Smoothly Increase As Engine Starts)"),
+                        ("8.", "Throttle Control", "1000 RPM"),
+                        ("9.", "Oil Pressure", "GREEN RANGE (Within 60 Seconds)"),
+                    ],
+                },
+                {
+                    "subtitle": "HOT START",
+                    "note": "Starting the engine after it has been shut down for more than 30 minutes in warm or hot ambient outside air temperatures may cause the fuel in the fuel lines to vapourise resulting in starting difficulties. If vapour in the fuel lines is suspected, then complete the HOT START checklist.",
+                    "items": [
+                        ("1.", "Mixture Control", "IDLE CUT-OFF"),
+                        ("2.", "Throttle Control", "OPEN 6mm"),
+                        ("3.", "KEY", "INSERTED (Switched To OFF Position)"),
+                        ("4.", "FUEL PUMP Switch", "ON"),
+                        ("5.", "Mixture Control", "FULL RICH FOR 1-2 SECONDS"),
+                        ("6.", "Mixture Control", "IDLE CUT-OFF"),
+                        ("7.", "FUEL PUMP Switch", "OFF"),
+                        ("8.", "Propeller Area", "CLEAR"),
+                        ("9.", "Brakes", "ON"),
+                        ("10.", "MAGNETOS Switch", "START (Release Key When Engine Starts)"),
+                        ("11.", "Mixture Control", "ONE THIRD OPEN WHEN ENGINE STARTS THEN SMOOTHLY FULL RICH AS POWER DEVELOPS"),
+                        ("12.", "Throttle Control", "1000 RPM"),
+                        ("13.", "Oil Pressure", "GREEN RANGE (Within 60 Seconds)"),
+                    ],
+                },
+                {
+                    "subtitle": "FLOODED START",
+                    "items": [
+                        ("1.", "Mixture Control", "IDLE CUT-OFF"),
+                        ("2.", "Throttle Control", "OPEN HALF TO FULL"),
+                        ("3.", "KEY", "INSERTED (Switched To OFF Position)"),
+                        ("4.", "Brakes", "ON"),
+                        ("5.", "MAGNETOS Switch", "START (Release When Engine Starts)"),
+                        ("6a.", "As Engine Starts — Mixture Control", "FULL RICH"),
+                        ("6b.", "As Engine Starts — Throttle Control", "1000 RPM"),
+                        ("7.", "Oil Pressure", "GREEN RANGE (Within 60 Seconds)"),
+                    ],
+                },
+            ],
+            "footer": "ENGINE START checklist complete",
+        },
+        {
+            "title": "A6.0 AFTER START",
+            "caution": "DO NOT EXCEED 1200 RPM UNTIL OIL TEMPERATURE IS IN THE GREEN RANGE OR UNTIL 8 MINUTES AFTER ENGINE START",
+            "subsections": [
+                {
+                    "subtitle": None,
+                    "items": [
+                        ("1.", "M BATT & S BATT", "POSITIVE"),
+                        ("2.", "LOW VOLTS Annunciator", "EXTINGUISHED"),
+                        ("3.", "AVIONICS Switch (BUS 1 & BUS 2)", "ON"),
+                        ("4.", "Flaps", "UP"),
+                        ("5.", "GNSS Navigation Database", "CURRENT (Check, Then Press 'ENT')"),
+                        ("6.", "Throttle Control", "1200 RPM"),
+                        ("7.", "Mixture Control", "LEANED (Approximately 25mm)"),
+                        ("8.", "Throttle Control", "1000 RPM"),
+                        ("9.", "MFD Display Mode", "AS REQUIRED"),
+                        ("10.", "AHRS", "ALIGNED"),
+                        ("11.", "ATIS", "NOTED"),
+                        ("12.", "AVIONICS", "CHECKED & SET"),
+                        ("13.", "Taxi Clearance", "OBTAINED (Or Expected)"),
+                        ("14.", "Taxi & Departure Brief", "COMPLETE"),
+                        ("15.", "NAV & TAXI Light Switch", "ON"),
+                    ],
+                }
+            ],
+            "footer": "AFTER START checklist complete",
+        },
+        {
+            "title": "A7.0 TAXI",
+            "note": "To complete the TAXI checklist, items 2, 3, and 4 must each be checked twice. Once during a turn to the left, and again during a turn to the right.",
+            "subsections": [
+                {
+                    "subtitle": None,
+                    "items": [
+                        ("1.", "Brakes (For Each Crew Member In The Front Row)", "EFFECTIVE"),
+                        ("2.", "Slip Indicator", "[LEFT OR RIGHT]"),
+                        ("3.", "Compass & HSI", "[DECREASING OR INCREASING]"),
+                        ("4.", "Attitude Indicators (PFD & STBY)", "ERECT & LEVEL"),
+                    ],
+                }
+            ],
+            "footer": "TAXI checklist complete",
+        },
+        {
+            "title": "A8.0 ENGINE RUN-UP",
+            "note": "When setting throttle to idle and checking the engine RPM (item 14), the pilot should hold the throttle control under tension by applying a consistent pulling pressure. If this is not performed, the engine may not idle within the limits of 600 - 800 RPM.",
+            "subsections": [
+                {
+                    "subtitle": None,
+                    "items": [
+                        ("1.", "Parking Brake", "SET"),
+                        ("2.", "Throttle Control", "1000 RPM"),
+                        ("3.", "FUEL SELECTOR
