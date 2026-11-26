@@ -929,7 +929,7 @@ def reset_all():
             st.session_state[key] = False
 
 
-st.title("C172R&S G1000 Normal Checklist")
+st.title("C172R&S G1000 Normal Checklist Rev. 3.0")
 
 with st.sidebar:
     st.header("Navigation")
