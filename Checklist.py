@@ -1180,6 +1180,29 @@ with st.sidebar:
     enable_speech = st.toggle("Spoken Callouts", value=True)
     selected_voice_label = st.selectbox("Voice", list(VOICE_OPTIONS.keys()))
     selected_voice = VOICE_OPTIONS[selected_voice_label]
+
+    if st.button("⬇️ Preload All Section Audio", use_container_width=True):
+        all_sections = [
+            section
+            for sections in CHECKLIST_PARTS.values()
+            for section in sections
+        ]
+        progress_bar = st.progress(0, text="Starting audio download...")
+        total = len(all_sections)
+
+        for idx, sec in enumerate(all_sections, start=1):
+            progress_bar.progress(
+                idx / total,
+                text=f"Loading ({idx}/{total}): {sec['title']}",
+            )
+            try:
+                generate_tts_base64(build_section_speech(sec), selected_voice)
+            except Exception:
+                pass
+
+        progress_bar.empty()
+        st.success("All section audio ready!")
+
     st.divider()
     st.header("Display")
     enable_highlights = st.toggle("Yellow Mnemonic Highlights", value=True)
