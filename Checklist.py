@@ -1002,6 +1002,21 @@ def clean_for_speech(text):
     return " ".join(text.split())
 
 
+def build_section_speech(section):
+    clean_title = re.sub(r"^[AB]\d+\.\d+\s*", "", section["title"]).strip()
+    parts = [f"{clean_title} checklist."]
+
+    for subsection in section["subsections"]:
+        if subsection.get("subtitle"):
+            parts.append(f"{subsection['subtitle']}.")
+        for _, item, action in subsection["items"]:
+            parts.append(f"{clean_for_speech(item)}, {clean_for_speech(action)}.")
+
+    closing = section.get("footer") or f"{clean_title} checklist complete."
+    parts.append(closing)
+    return " ".join(parts)
+
+
 def format_item_html(num, item, highlight=False):
     if highlight:
         highlighted = re.sub(
@@ -1044,14 +1059,18 @@ def on_checkbox_change(key, item, action, section_title, footer, section_keys):
 
 
 def play_audio_cue(event, enable_beep, enable_speech, voice):
-    if not event or (not enable_beep and not enable_speech):
+    if not event:
+        return
+
+    is_section = event["type"] == "section"
+    if not is_section and not enable_beep and not enable_speech:
         return
 
     event_type = json.dumps(event["type"])
-    beep_flag = "true" if enable_beep else "false"
+    beep_flag = "true" if (enable_beep and not is_section) else "false"
 
     audio_b64 = ""
-    if enable_speech:
+    if enable_speech or is_section:
         try:
             audio_b64 = generate_tts_base64(event["text"], voice)
         except Exception:
@@ -1174,7 +1193,16 @@ if selected_section != "Show All":
     sections_to_show = [s for s in sections_to_show if s["title"] == selected_section]
 
 for section in sections_to_show:
-    st.subheader(section["title"])
+    hdr_col1, hdr_col2 = st.columns([4, 1], vertical_alignment="center")
+    with hdr_col1:
+        st.subheader(section["title"])
+    with hdr_col2:
+        if st.button("🔊 Play", key=f"play_sec_{section['title']}", use_container_width=True):
+            st.session_state.audio_event = {
+                "type": "section",
+                "text": build_section_speech(section),
+                "ts": time.time(),
+            }
 
     if section.get("caution"):
         st.warning(f"**CAUTION:** {section['caution']}")
