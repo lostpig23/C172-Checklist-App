@@ -17,6 +17,25 @@ st.markdown(
         border-radius: 2px !important;
         padding: 10px 14px !important;
     }
+    div[class*="st-key-act_"] button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 2px 4px !important;
+        min-height: 0px !important;
+        justify-content: flex-end !important;
+        text-align: right !important;
+    }
+    div[class*="st-key-act_"] button p {
+        font-weight: 700 !important;
+        text-align: right !important;
+    }
+    div[class*="st-key-act_"] button:hover {
+        background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+    div[class*="st-key-act_todo_"] button p { color: #000000 !important; }
+    div[class*="st-key-act_done_"] button p { color: #16A34A !important; }
+    div[class*="st-key-act_hide_"] button p { color: #9CA3AF !important; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -1045,8 +1064,11 @@ def reset_section(section_keys, section_title):
         st.session_state.active_section_audio = None
 
 
-def on_checkbox_change(key, item, action, section_title, footer, section_keys):
-    if not st.session_state.get(key, False):
+def on_item_click(key, item, action, section_title, footer, section_keys):
+    new_state = not st.session_state.get(key, False)
+    st.session_state[key] = new_state
+
+    if not new_state:
         return
 
     spoken_item = f"{clean_for_speech(item)}, {clean_for_speech(action)}"
@@ -1184,31 +1206,31 @@ def render_subsection(
         key = f"chk_{section_title}_{sub_idx}_{i_idx}"
         is_checked = st.session_state.get(key, False)
 
+        if is_checked:
+            completed += 1
+
         if recall_mode and is_recall_area and not is_checked:
             action_display = "•••••"
-            action_color = "#9CA3AF"
+            btn_prefix = "act_hide"
+        elif is_checked:
+            action_display = action
+            btn_prefix = "act_done"
         else:
             action_display = action
-            action_color = "#16A34A" if is_checked else "#000000"
+            btn_prefix = "act_todo"
 
-        col1, col2, col3 = st.columns([5, 4, 1], vertical_alignment="center")
+        col1, col2 = st.columns([5, 5], vertical_alignment="center")
 
         with col1:
             st.markdown(format_item_html(num, item, highlight), unsafe_allow_html=True)
         with col2:
-            st.markdown(
-                f"<div style='text-align: right; font-weight: bold; color: {action_color};'>{action_display}</div>",
-                unsafe_allow_html=True,
-            )
-        with col3:
-            if st.checkbox(
-                "Done",
-                key=key,
-                label_visibility="collapsed",
-                on_change=on_checkbox_change,
+            st.button(
+                action_display,
+                key=f"{btn_prefix}_{section_title}_{sub_idx}_{i_idx}",
+                on_click=on_item_click,
                 args=(key, item, action, section_title, footer, section_keys),
-            ):
-                completed += 1
+                use_container_width=True,
+            )
 
     return total, completed
 
@@ -1261,7 +1283,7 @@ with st.sidebar:
     enable_highlights = st.toggle("Yellow Mnemonic Highlights", value=True)
     recall_mode = st.toggle("Recall Practice Mode", value=False)
     st.divider()
-    st.button("Reset All Checkboxes", on_click=reset_all, use_container_width=True)
+    st.button("Reset All Items", on_click=reset_all, use_container_width=True)
 
 st.header(selected_part)
 
@@ -1361,7 +1383,7 @@ for section in sections_to_show:
                 if recall_mode and not pic_checked:
                     st.markdown(
                         "<div style='color: #9CA3AF; font-style: italic; text-align: center;'>"
-                        "PIC Brief hidden in Recall Practice Mode — tick item 3 to reveal</div>",
+                        "PIC Brief hidden in Recall Practice Mode — click item 3 to reveal</div>",
                         unsafe_allow_html=True,
                     )
                 else:
