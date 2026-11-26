@@ -1555,6 +1555,19 @@ function playBeep(type) {
       gain.connect(audioCtx.destination);
       osc.start(now);
       osc.stop(now + 0.08);
+    } else if (type === "listen") {
+      [520, 660].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now + i * 0.06);
+        gain.gain.setValueAtTime(0.09, now + i * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.09);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + i * 0.06);
+        osc.stop(now + i * 0.06 + 0.09);
+      });
     } else if (type === "complete") {
       [523.25, 783.99].forEach((freq, i) => {
         const osc = audioCtx.createOscillator();
@@ -1655,7 +1668,7 @@ function renderUI() {
   });
 }
 
-function startListening(targetIdx) {
+function startListening(targetIdx, playCue = true) {
   if (!running || paused || idx !== targetIdx) return;
   stopRecognition();
 
@@ -1670,6 +1683,9 @@ function startListening(targetIdx) {
 
   phase = "listening";
   setStatus("listening", CFG.strictMode ? "Listening for response..." : "Listening for 'Checked'...");
+  if (playCue) {
+    playBeep("listen");
+  }
 
   try {
     recognition = new SpeechRec();
@@ -1720,7 +1736,7 @@ function startListening(targetIdx) {
 
     recognition.onend = () => {
       if (running && !paused && phase === "listening" && idx === targetIdx && !fatalMicError) {
-        restartRecTimer = setTimeout(() => startListening(targetIdx), 250);
+        restartRecTimer = setTimeout(() => startListening(targetIdx, false), 250);
       }
     };
 
