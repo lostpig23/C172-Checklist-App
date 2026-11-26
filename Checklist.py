@@ -1,4 +1,8 @@
+import json
+import re
+import time
 import streamlit as st
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="C172R&S G1000 Checklist", layout="centered")
 
@@ -968,13 +972,107 @@ CHECKLIST_PARTS = {
 }
 
 
+def clean_for_speech(text):
+    # Remove (rounded brackets) since they are not verbalised, keep text inside [square brackets]
+    text = re.sub(r"\s*\([^)]*\)", "", text)
+    text = text.replace("[", "").replace("]", "")
+    return " ".join(text.split())
+
+
 def reset_all():
     for key in list(st.session_state.keys()):
         if key.startswith("chk_"):
             st.session_state[key] = False
+    st.session_state.audio_event = None
 
 
-def render_subsection(section_title, sub_idx, subsection):
+def on_checkbox_change(key, item, action, section_title, footer, section_keys):
+    if not st.session_state.get(key, False):
+        return  # Only play audio when checking, not unchecking
+
+    spoken_item = f"{clean_for_speech(item)}, {clean_for_speech(action)}"
+    all_done = all(st.session_state.get(k, False) for k in section_keys)
+
+    if all_done:
+        closing = footer if footer else f"{section_title} complete"
+        st.session_state.audio_event = {
+            "type": "complete",
+            "text": f"{spoken_item}. {closing}",
+            "ts": time.time(),
+        }
+    else:
+        st.session_state.audio_event = {
+            "type": "tick",
+            "text": spoken_item,
+            "ts": time.time(),
+        }
+
+
+def play_audio_cue(event, enable_beep, enable_speech):
+    if not event or (not enable_beep and not enable_speech):
+        return
+
+    event_type = json.dumps(event["type"])
+    spoken_text = json.dumps(event["text"])
+    beep_flag = "true" if enable_beep else "false"
+    speech_flag = "true" if enable_speech else "false"
+
+    js_code = f"""
+    <script>
+    // ts: {event["ts"]}
+    (function() {{
+        const playBeep = {beep_flag};
+        const playSpeech = {speech_flag};
+        const type = {event_type};
+        const text = {spoken_text};
+
+        if (playBeep) {{
+            try {{
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioCtx();
+                const now = ctx.currentTime;
+
+                if (type === "tick") {{
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(880, now);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                }} else if (type === "complete") {{
+                    [523.25, 783.99].forEach((freq, i) => {{
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = "sine";
+                        osc.frequency.setValueAtTime(freq, now + i * 0.14);
+                        gain.gain.setValueAtTime(0.15, now + i * 0.14);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.25);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + i * 0.14);
+                        osc.stop(now + i * 0.14 + 0.25);
+                    }});
+                }}
+            }} catch (e) {{}}
+        }}
+
+        if (playSpeech && "speechSynthesis" in window) {{
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.rate = 1.05;
+            window.speechSynthesis.speak(utter);
+        }}
+    }})();
+    </script>
+    """
+    components.html(js_code, height=0, width=0)
+
+
+def render_subsection(section_title, sub_idx, subsection, footer, section_keys):
     completed = 0
     total = 0
 
@@ -998,11 +1096,20 @@ def render_subsection(section_title, sub_idx, subsection):
                 unsafe_allow_html=True,
             )
         with col3:
-            if st.checkbox("Done", key=key, label_visibility="collapsed"):
+            if st.checkbox(
+                "Done",
+                key=key,
+                label_visibility="collapsed",
+                on_change=on_checkbox_change,
+                args=(key, item, action, section_title, footer, section_keys),
+            ):
                 completed += 1
 
     return total, completed
 
+
+if "audio_event" not in st.session_state:
+    st.session_state.audio_event = None
 
 st.title("C172R&S G1000 Normal Checklist")
 
@@ -1011,6 +1118,10 @@ with st.sidebar:
     selected_part = st.radio("Select Part", list(CHECKLIST_PARTS.keys()))
     section_titles = ["Show All"] + [s["title"] for s in CHECKLIST_PARTS[selected_part]]
     selected_section = st.selectbox("Jump to Checklist", section_titles)
+    st.divider()
+    st.header("Audio Cues")
+    enable_beep = st.toggle("Beeps & Completion Chime", value=True)
+    enable_speech = st.toggle("Spoken Callouts", value=True)
     st.divider()
     st.button("Reset All Checkboxes", on_click=reset_all, use_container_width=True)
 
@@ -1028,24 +1139,36 @@ for section in sections_to_show:
     if section.get("note"):
         st.info(f"**NOTE:** {section['note']}")
 
+    section_keys = [
+        f"chk_{section['title']}_{sub_idx}_{i_idx}"
+        for sub_idx, subsection in enumerate(section["subsections"])
+        for i_idx in range(len(subsection["items"]))
+    ]
+
     total_items = 0
     completed_items = 0
 
     if section.get("recall_box"):
         with st.container(border=True, key=f"recall_sec_{section['title']}"):
             for sub_idx, subsection in enumerate(section["subsections"]):
-                t, c = render_subsection(section["title"], sub_idx, subsection)
+                t, c = render_subsection(
+                    section["title"], sub_idx, subsection, section.get("footer"), section_keys
+                )
                 total_items += t
                 completed_items += c
     else:
         for sub_idx, subsection in enumerate(section["subsections"]):
             if subsection.get("recall"):
                 with st.container(border=True, key=f"recall_sub_{section['title']}_{sub_idx}"):
-                    t, c = render_subsection(section["title"], sub_idx, subsection)
+                    t, c = render_subsection(
+                        section["title"], sub_idx, subsection, section.get("footer"), section_keys
+                    )
                     total_items += t
                     completed_items += c
             else:
-                t, c = render_subsection(section["title"], sub_idx, subsection)
+                t, c = render_subsection(
+                    section["title"], sub_idx, subsection, section.get("footer"), section_keys
+                )
                 total_items += t
                 completed_items += c
 
@@ -1072,3 +1195,7 @@ for section in sections_to_show:
         st.info(f"**NOTE:** {section['post_note']}")
 
     st.divider()
+
+if st.session_state.audio_event:
+    play_audio_cue(st.session_state.audio_event, enable_beep, enable_speech)
+    st.session_state.audio_event = None
