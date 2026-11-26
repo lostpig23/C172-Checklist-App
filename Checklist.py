@@ -25,6 +25,7 @@ st.markdown(
         min-height: 0px !important;
         justify-content: flex-end !important;
         text-align: right !important;
+        color: #000000 !important;
     }
     div[class*="st-key-act_"] button p {
         font-weight: 700 !important;
@@ -33,9 +34,6 @@ st.markdown(
     div[class*="st-key-act_"] button:hover {
         background-color: rgba(0, 0, 0, 0.05) !important;
     }
-    div[class*="st-key-act_todo_"] button p { color: #000000 !important; }
-    div[class*="st-key-act_done_"] button p { color: #16A34A !important; }
-    div[class*="st-key-act_hide_"] button p { color: #9CA3AF !important; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -1209,15 +1207,13 @@ def render_subsection(
         if is_checked:
             completed += 1
 
+        safe_action = action.replace("[", r"\[").replace("]", r"\]")
         if recall_mode and is_recall_area and not is_checked:
-            action_display = "•••••"
-            btn_prefix = "act_hide"
+            action_label = ":gray[**•••••**]"
         elif is_checked:
-            action_display = action
-            btn_prefix = "act_done"
+            action_label = f":green[**{safe_action}**]"
         else:
-            action_display = action
-            btn_prefix = "act_todo"
+            action_label = f"**{safe_action}**"
 
         col1, col2 = st.columns([5, 5], vertical_alignment="center")
 
@@ -1225,8 +1221,8 @@ def render_subsection(
             st.markdown(format_item_html(num, item, highlight), unsafe_allow_html=True)
         with col2:
             st.button(
-                action_display,
-                key=f"{btn_prefix}_{section_title}_{sub_idx}_{i_idx}",
+                action_label,
+                key=f"act_{section_title}_{sub_idx}_{i_idx}",
                 on_click=on_item_click,
                 args=(key, item, action, section_title, footer, section_keys),
                 use_container_width=True,
