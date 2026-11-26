@@ -31,6 +31,13 @@ st.markdown(
         font-weight: 700 !important;
         text-align: right !important;
     }
+    div[class*="st-key-act_"] button p span {
+        color: #00C853 !important;
+    }
+    div[class*="st-key-act_"] button p em {
+        color: #9CA3AF !important;
+        font-style: normal !important;
+    }
     div[class*="st-key-act_"] button:hover {
         background-color: rgba(0, 0, 0, 0.05) !important;
     }
@@ -1209,7 +1216,7 @@ def render_subsection(
 
         safe_action = action.replace("[", r"\[").replace("]", r"\]")
         if recall_mode and is_recall_area and not is_checked:
-            action_label = ":gray[**•••••**]"
+            action_label = "*•••••*"
         elif is_checked:
             action_label = f":green[**{safe_action}**]"
         else:
