@@ -985,7 +985,7 @@ CHECKLIST_PARTS = {
 @st.cache_data(show_spinner=False)
 def generate_tts_base64(text, voice):
     async def _gen():
-        communicate = edge_tts.Communicate(text, voice, rate="+5%")
+        communicate = edge_tts.Communicate(text, voice)
         audio_bytes = b""
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
@@ -1034,6 +1034,15 @@ def reset_all():
         if key.startswith("chk_"):
             st.session_state[key] = False
     st.session_state.audio_event = None
+    st.session_state.active_section_audio = None
+
+
+def reset_section(section_keys, section_title):
+    for key in section_keys:
+        st.session_state[key] = False
+    st.session_state.audio_event = None
+    if st.session_state.get("active_section_audio") == section_title:
+        st.session_state.active_section_audio = None
 
 
 def on_checkbox_change(key, item, action, section_title, footer, section_keys):
@@ -1058,19 +1067,15 @@ def on_checkbox_change(key, item, action, section_title, footer, section_keys):
         }
 
 
-def play_audio_cue(event, enable_beep, enable_speech, voice):
-    if not event:
-        return
-
-    is_section = event["type"] == "section"
-    if not is_section and not enable_beep and not enable_speech:
+def play_audio_cue(event, enable_beep, enable_speech, voice, speed):
+    if not event or (not enable_beep and not enable_speech):
         return
 
     event_type = json.dumps(event["type"])
-    beep_flag = "true" if (enable_beep and not is_section) else "false"
+    beep_flag = "true" if enable_beep else "false"
 
     audio_b64 = ""
-    if enable_speech or is_section:
+    if enable_speech:
         try:
             audio_b64 = generate_tts_base64(event["text"], voice)
         except Exception:
@@ -1083,6 +1088,7 @@ def play_audio_cue(event, enable_beep, enable_speech, voice):
         const playBeep = {beep_flag};
         const type = {event_type};
         const audioB64 = "{audio_b64}";
+        const rate = {speed};
 
         if (playBeep) {{
             try {{
@@ -1120,6 +1126,7 @@ def play_audio_cue(event, enable_beep, enable_speech, voice):
 
         if (audioB64) {{
             const audio = new Audio("data:audio/mp3;base64," + audioB64);
+            audio.playbackRate = rate;
             audio.play().catch(() => {{}});
         }}
     }})();
@@ -1128,7 +1135,40 @@ def play_audio_cue(event, enable_beep, enable_speech, voice):
     components.html(js_code, height=0, width=0)
 
 
-def render_subsection(section_title, sub_idx, subsection, footer, section_keys, highlight=False):
+def render_section_player(section, voice, speed):
+    try:
+        audio_b64 = generate_tts_base64(build_section_speech(section), voice)
+    except Exception:
+        st.error("Could not load audio for this section.")
+        return
+
+    player_html = f"""
+    <div style="display: flex; align-items: center; padding: 2px 0;">
+        <audio id="secPlayer" controls autoplay style="width: 100%; height: 38px;">
+            <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
+        </audio>
+    </div>
+    <script>
+        const player = document.getElementById("secPlayer");
+        if (player) {{
+            player.playbackRate = {speed};
+            player.play().catch(() => {{}});
+        }}
+    </script>
+    """
+    components.html(player_html, height=48)
+
+
+def render_subsection(
+    section_title,
+    sub_idx,
+    subsection,
+    footer,
+    section_keys,
+    highlight=False,
+    is_recall_area=False,
+    recall_mode=False,
+):
     completed = 0
     total = 0
 
@@ -1143,7 +1183,13 @@ def render_subsection(section_title, sub_idx, subsection, footer, section_keys, 
         total += 1
         key = f"chk_{section_title}_{sub_idx}_{i_idx}"
         is_checked = st.session_state.get(key, False)
-        action_color = "#16A34A" if is_checked else "#000000"
+
+        if recall_mode and is_recall_area and not is_checked:
+            action_display = "•••••"
+            action_color = "#9CA3AF"
+        else:
+            action_display = action
+            action_color = "#16A34A" if is_checked else "#000000"
 
         col1, col2, col3 = st.columns([5, 4, 1], vertical_alignment="center")
 
@@ -1151,7 +1197,7 @@ def render_subsection(section_title, sub_idx, subsection, footer, section_keys, 
             st.markdown(format_item_html(num, item, highlight), unsafe_allow_html=True)
         with col2:
             st.markdown(
-                f"<div style='text-align: right; font-weight: bold; color: {action_color};'>{action}</div>",
+                f"<div style='text-align: right; font-weight: bold; color: {action_color};'>{action_display}</div>",
                 unsafe_allow_html=True,
             )
         with col3:
@@ -1169,6 +1215,8 @@ def render_subsection(section_title, sub_idx, subsection, footer, section_keys, 
 
 if "audio_event" not in st.session_state:
     st.session_state.audio_event = None
+if "active_section_audio" not in st.session_state:
+    st.session_state.active_section_audio = None
 
 st.title("C172R&S G1000 Normal Checklist")
 
@@ -1178,11 +1226,13 @@ with st.sidebar:
     section_titles = ["Show All"] + [s["title"] for s in CHECKLIST_PARTS[selected_part]]
     selected_section = st.selectbox("Jump to Checklist", section_titles)
     st.divider()
+
     st.header("Audio Cues")
     enable_beep = st.toggle("Beeps & Completion Chime", value=True)
     enable_speech = st.toggle("Spoken Callouts", value=True)
     selected_voice_label = st.selectbox("Voice", list(VOICE_OPTIONS.keys()))
     selected_voice = VOICE_OPTIONS[selected_voice_label]
+    speech_speed = st.slider("Speaking Speed", 0.80, 1.30, 1.05, 0.05, format="%.2fx")
 
     if st.button("⬇️ Preload All Section Audio", use_container_width=True):
         all_sections = [
@@ -1209,6 +1259,7 @@ with st.sidebar:
     st.divider()
     st.header("Display")
     enable_highlights = st.toggle("Yellow Mnemonic Highlights", value=True)
+    recall_mode = st.toggle("Recall Practice Mode", value=False)
     st.divider()
     st.button("Reset All Checkboxes", on_click=reset_all, use_container_width=True)
 
@@ -1219,27 +1270,44 @@ if selected_section != "Show All":
     sections_to_show = [s for s in sections_to_show if s["title"] == selected_section]
 
 for section in sections_to_show:
-    hdr_col1, hdr_col2 = st.columns([4, 1], vertical_alignment="center")
-    with hdr_col1:
-        st.subheader(section["title"])
-    with hdr_col2:
-        if st.button("🔊 Play", key=f"play_sec_{section['title']}", use_container_width=True):
-            st.session_state.audio_event = {
-                "type": "section",
-                "text": build_section_speech(section),
-                "ts": time.time(),
-            }
-
-    if section.get("caution"):
-        st.warning(f"**CAUTION:** {section['caution']}")
-    if section.get("note"):
-        st.info(f"**NOTE:** {section['note']}")
-
     section_keys = [
         f"chk_{section['title']}_{sub_idx}_{i_idx}"
         for sub_idx, subsection in enumerate(section["subsections"])
         for i_idx in range(len(subsection["items"]))
     ]
+    done_count = sum(1 for k in section_keys if st.session_state.get(k, False))
+    total_count = len(section_keys)
+    is_playing = st.session_state.active_section_audio == section["title"]
+
+    hdr_col1, hdr_col2, hdr_col3 = st.columns([3.4, 1.1, 1.1], vertical_alignment="center")
+    with hdr_col1:
+        st.subheader(f"{section['title']}  `{done_count}/{total_count}`")
+    with hdr_col2:
+        if is_playing:
+            if st.button("⏹ Stop", key=f"stop_sec_{section['title']}", use_container_width=True):
+                st.session_state.active_section_audio = None
+                st.rerun()
+        else:
+            if st.button("🔊 Play", key=f"play_sec_{section['title']}", use_container_width=True):
+                st.session_state.active_section_audio = section["title"]
+                st.session_state.audio_event = None
+                st.rerun()
+    with hdr_col3:
+        st.button(
+            "↺ Reset",
+            key=f"reset_sec_{section['title']}",
+            on_click=reset_section,
+            args=(section_keys, section["title"]),
+            use_container_width=True,
+        )
+
+    if is_playing:
+        render_section_player(section, selected_voice, speech_speed)
+
+    if section.get("caution"):
+        st.warning(f"**CAUTION:** {section['caution']}")
+    if section.get("note"):
+        st.info(f"**NOTE:** {section['note']}")
 
     total_items = 0
     completed_items = 0
@@ -1254,6 +1322,8 @@ for section in sections_to_show:
                     section.get("footer"),
                     section_keys,
                     highlight=enable_highlights,
+                    is_recall_area=True,
+                    recall_mode=recall_mode,
                 )
                 total_items += t
                 completed_items += c
@@ -1267,6 +1337,8 @@ for section in sections_to_show:
                         subsection,
                         section.get("footer"),
                         section_keys,
+                        is_recall_area=True,
+                        recall_mode=recall_mode,
                     )
                     total_items += t
                     completed_items += c
@@ -1284,8 +1356,16 @@ for section in sections_to_show:
     if section.get("brief_text"):
         brief_html = section["brief_text"].replace("\n", "<br>")
         if section.get("brief_recall"):
+            pic_checked = st.session_state.get(f"chk_{section['title']}_0_2", False)
             with st.container(border=True, key=f"recall_brief_{section['title']}"):
-                st.markdown(f"<i>{brief_html}</i>", unsafe_allow_html=True)
+                if recall_mode and not pic_checked:
+                    st.markdown(
+                        "<div style='color: #9CA3AF; font-style: italic; text-align: center;'>"
+                        "PIC Brief hidden in Recall Practice Mode — tick item 3 to reveal</div>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(f"<i>{brief_html}</i>", unsafe_allow_html=True)
         else:
             st.markdown(f"> {section['brief_text'].replace(chr(10), '  ' + chr(10) + '> ')}")
 
@@ -1306,5 +1386,11 @@ for section in sections_to_show:
     st.divider()
 
 if st.session_state.audio_event:
-    play_audio_cue(st.session_state.audio_event, enable_beep, enable_speech, selected_voice)
+    play_audio_cue(
+        st.session_state.audio_event,
+        enable_beep,
+        enable_speech,
+        selected_voice,
+        speech_speed,
+    )
     st.session_state.audio_event = None
