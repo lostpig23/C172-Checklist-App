@@ -9,43 +9,6 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="C172R&S G1000 Checklist", layout="centered")
 
-st.markdown(
-    """
-    <style>
-    div[class*="st-key-recall_"] {
-        border: 5px solid #000000 !important;
-        border-radius: 2px !important;
-        padding: 10px 14px !important;
-    }
-    div[class*="st-key-act_"] button {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 2px 4px !important;
-        min-height: 0px !important;
-        justify-content: flex-end !important;
-        text-align: right !important;
-        color: #000000 !important;
-    }
-    div[class*="st-key-act_"] button p {
-        font-weight: 700 !important;
-        text-align: right !important;
-    }
-    div[class*="st-key-act_"] button p span {
-        color: #00C853 !important;
-    }
-    div[class*="st-key-act_"] button p em {
-        color: #9CA3AF !important;
-        font-style: normal !important;
-    }
-    div[class*="st-key-act_"] button:hover {
-        background-color: rgba(0, 0, 0, 0.05) !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 VOICE_OPTIONS = {
     "Luna (Singapore Female)": "en-SG-LunaNeural",
     "Sonia (British Female)": "en-GB-SoniaNeural",
@@ -1285,8 +1248,134 @@ with st.sidebar:
     st.header("Display")
     enable_highlights = st.toggle("Yellow Mnemonic Highlights", value=True)
     recall_mode = st.toggle("Recall Practice Mode", value=False)
+    night_mode = st.toggle("Night / Low-Glare Cockpit Theme", value=False)
     st.divider()
     st.button("Reset All Items", on_click=reset_all, use_container_width=True)
+
+if night_mode:
+    theme_css = """
+    <style>
+    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #0E1117 !important;
+        color: #E6EDF3 !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #161B22 !important;
+        color: #E6EDF3 !important;
+    }
+    [data-testid="stAppViewContainer"] h1,
+    [data-testid="stAppViewContainer"] h2,
+    [data-testid="stAppViewContainer"] h3,
+    [data-testid="stAppViewContainer"] p,
+    [data-testid="stAppViewContainer"] label,
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label {
+        color: #E6EDF3 !important;
+    }
+    [data-testid="stSidebar"] [data-baseweb="select"] > div {
+        background-color: #21262D !important;
+        color: #E6EDF3 !important;
+        border-color: #30363D !important;
+    }
+    [data-testid="stAppViewContainer"] button,
+    [data-testid="stSidebar"] button {
+        background-color: #21262D !important;
+        color: #E6EDF3 !important;
+        border: 1px solid #30363D !important;
+    }
+    [data-testid="stAppViewContainer"] button:hover,
+    [data-testid="stSidebar"] button:hover {
+        background-color: #30363D !important;
+    }
+    [data-testid="stAppViewContainer"] code {
+        background-color: #21262D !important;
+        color: #E6EDF3 !important;
+    }
+    [data-testid="stAppViewContainer"] hr,
+    [data-testid="stSidebar"] hr {
+        border-color: #30363D !important;
+    }
+    [data-testid="stAlert"] {
+        background-color: #161B22 !important;
+        border: 1px solid #30363D !important;
+        color: #E6EDF3 !important;
+    }
+    mark {
+        background-color: #EAB308 !important;
+        color: #000000 !important;
+    }
+    div[class*="st-key-recall_"] {
+        border: 5px solid #E6EDF3 !important;
+        border-radius: 2px !important;
+        padding: 10px 14px !important;
+        background-color: #161B22 !important;
+    }
+    div[class*="st-key-act_"] button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 2px 4px !important;
+        min-height: 0px !important;
+        justify-content: flex-end !important;
+        text-align: right !important;
+        color: #E6EDF3 !important;
+    }
+    div[class*="st-key-act_"] button p {
+        font-weight: 700 !important;
+        text-align: right !important;
+        color: #E6EDF3 !important;
+    }
+    div[class*="st-key-act_"] button p span {
+        color: #00E676 !important;
+    }
+    div[class*="st-key-act_"] button p em {
+        color: #6B7280 !important;
+        font-style: normal !important;
+    }
+    div[class*="st-key-act_"] button:hover {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+    }
+    </style>
+    """
+else:
+    theme_css = """
+    <style>
+    div[class*="st-key-recall_"] {
+        border: 5px solid #000000 !important;
+        border-radius: 2px !important;
+        padding: 10px 14px !important;
+    }
+    div[class*="st-key-act_"] button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 2px 4px !important;
+        min-height: 0px !important;
+        justify-content: flex-end !important;
+        text-align: right !important;
+        color: #000000 !important;
+    }
+    div[class*="st-key-act_"] button p {
+        font-weight: 700 !important;
+        text-align: right !important;
+    }
+    div[class*="st-key-act_"] button p span {
+        color: #00C853 !important;
+    }
+    div[class*="st-key-act_"] button p em {
+        color: #9CA3AF !important;
+        font-style: normal !important;
+    }
+    div[class*="st-key-act_"] button:hover {
+        background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+    </style>
+    """
+
+st.markdown(theme_css, unsafe_allow_html=True)
 
 st.header(selected_part)
 
