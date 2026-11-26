@@ -1142,13 +1142,16 @@ def render_subsection(section_title, sub_idx, subsection, footer, section_keys, 
     for i_idx, (num, item, action) in enumerate(subsection["items"]):
         total += 1
         key = f"chk_{section_title}_{sub_idx}_{i_idx}"
+        is_checked = st.session_state.get(key, False)
+        action_color = "#16A34A" if is_checked else "#000000"
+
         col1, col2, col3 = st.columns([5, 4, 1], vertical_alignment="center")
 
         with col1:
             st.markdown(format_item_html(num, item, highlight), unsafe_allow_html=True)
         with col2:
             st.markdown(
-                f"<div style='text-align: right; font-weight: bold;'>{action}</div>",
+                f"<div style='text-align: right; font-weight: bold; color: {action_color};'>{action}</div>",
                 unsafe_allow_html=True,
             )
         with col3:
