@@ -47,8 +47,8 @@ st.markdown(
 )
 
 VOICE_OPTIONS = {
-    "Sonia (British Female)": "en-GB-SoniaNeural",
     "Luna (Singapore Female)": "en-SG-LunaNeural",
+    "Sonia (British Female)": "en-GB-SoniaNeural",
     "Natasha (Australian Female)": "en-AU-NatashaNeural",
     "Aria (US Female)": "en-US-AriaNeural",
 }
