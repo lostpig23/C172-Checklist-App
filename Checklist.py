@@ -1002,6 +1002,18 @@ def clean_for_speech(text):
     return " ".join(text.split())
 
 
+def format_item_html(num, item, highlight=False):
+    if highlight:
+        highlighted = re.sub(
+            r"^(\[?)(\d+|[A-Za-z])",
+            r'\1<mark style="background-color: #FFF000; color: #000000; padding: 0 2px;">\2</mark>',
+            item,
+            count=1,
+        )
+        return f"<b>{num} {highlighted}</b>"
+    return f"<b>{num} {item}</b>"
+
+
 def reset_all():
     for key in list(st.session_state.keys()):
         if key.startswith("chk_"):
@@ -1097,7 +1109,7 @@ def play_audio_cue(event, enable_beep, enable_speech, voice):
     components.html(js_code, height=0, width=0)
 
 
-def render_subsection(section_title, sub_idx, subsection, footer, section_keys):
+def render_subsection(section_title, sub_idx, subsection, footer, section_keys, highlight=False):
     completed = 0
     total = 0
 
@@ -1114,7 +1126,7 @@ def render_subsection(section_title, sub_idx, subsection, footer, section_keys):
         col1, col2, col3 = st.columns([5, 4, 1], vertical_alignment="center")
 
         with col1:
-            st.markdown(f"**{num} {item}**")
+            st.markdown(format_item_html(num, item, highlight), unsafe_allow_html=True)
         with col2:
             st.markdown(
                 f"<div style='text-align: right; font-weight: bold;'>{action}</div>",
@@ -1150,6 +1162,9 @@ with st.sidebar:
     selected_voice_label = st.selectbox("Voice", list(VOICE_OPTIONS.keys()))
     selected_voice = VOICE_OPTIONS[selected_voice_label]
     st.divider()
+    st.header("Display")
+    enable_highlights = st.toggle("Yellow Mnemonic Highlights", value=True)
+    st.divider()
     st.button("Reset All Checkboxes", on_click=reset_all, use_container_width=True)
 
 st.header(selected_part)
@@ -1179,7 +1194,12 @@ for section in sections_to_show:
         with st.container(border=True, key=f"recall_sec_{section['title']}"):
             for sub_idx, subsection in enumerate(section["subsections"]):
                 t, c = render_subsection(
-                    section["title"], sub_idx, subsection, section.get("footer"), section_keys
+                    section["title"],
+                    sub_idx,
+                    subsection,
+                    section.get("footer"),
+                    section_keys,
+                    highlight=enable_highlights,
                 )
                 total_items += t
                 completed_items += c
@@ -1188,13 +1208,21 @@ for section in sections_to_show:
             if subsection.get("recall"):
                 with st.container(border=True, key=f"recall_sub_{section['title']}_{sub_idx}"):
                     t, c = render_subsection(
-                        section["title"], sub_idx, subsection, section.get("footer"), section_keys
+                        section["title"],
+                        sub_idx,
+                        subsection,
+                        section.get("footer"),
+                        section_keys,
                     )
                     total_items += t
                     completed_items += c
             else:
                 t, c = render_subsection(
-                    section["title"], sub_idx, subsection, section.get("footer"), section_keys
+                    section["title"],
+                    sub_idx,
+                    subsection,
+                    section.get("footer"),
+                    section_keys,
                 )
                 total_items += t
                 completed_items += c
