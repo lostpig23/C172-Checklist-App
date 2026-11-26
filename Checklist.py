@@ -983,6 +983,27 @@ def generate_tts_base64(text, voice):
     return base64.b64encode(audio_data).decode("utf-8")
 
 
+@st.cache_data(show_spinner=False)
+def generate_tts_batch_base64(texts_tuple, voice):
+    async def _fetch_one(sem, text):
+        async with sem:
+            try:
+                communicate = edge_tts.Communicate(text, voice)
+                audio_bytes = b""
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        audio_bytes += chunk["data"]
+                return base64.b64encode(audio_bytes).decode("utf-8")
+            except Exception:
+                return ""
+
+    async def _run_all():
+        sem = asyncio.Semaphore(6)
+        return await asyncio.gather(*(_fetch_one(sem, t) for t in texts_tuple))
+
+    return asyncio.run(_run_all())
+
+
 def clean_for_speech(text):
     text = re.sub(r"\s*\([^)]*\)", "", text)
     text = text.replace("[", "").replace("]", "")
@@ -1022,6 +1043,7 @@ def reset_all():
             st.session_state[key] = False
     st.session_state.audio_event = None
     st.session_state.active_section_audio = None
+    st.session_state.active_voice_runner = None
 
 
 def reset_section(section_keys, section_title):
@@ -1030,6 +1052,8 @@ def reset_section(section_keys, section_title):
     st.session_state.audio_event = None
     if st.session_state.get("active_section_audio") == section_title:
         st.session_state.active_section_audio = None
+    if st.session_state.get("active_voice_runner") == section_title:
+        st.session_state.active_voice_runner = None
 
 
 def on_item_click(key, item, action, section_title, footer, section_keys):
@@ -1149,6 +1173,788 @@ def render_section_player(section, voice, speed):
     components.html(player_html, height=48)
 
 
+VOICE_RUNNER_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { margin: 0; padding: 4px 2px; background: transparent; color: __FG__; }
+  .card {
+    background: __CARD_BG__;
+    border: 2px solid __BORDER__;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .badge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: __BADGE_BG__;
+    color: __BADGE_FG__;
+    letter-spacing: 0.2px;
+  }
+  .progress-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: __MUTED__;
+  }
+  .prompt-box {
+    background: __PROMPT_BG__;
+    border: 1px solid __BORDER__;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .sub-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: __MUTED__;
+    margin-bottom: 4px;
+  }
+  .line-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .item-text {
+    font-size: 17px;
+    font-weight: 700;
+    color: __FG__;
+  }
+  .action-text {
+    font-size: 17px;
+    font-weight: 800;
+    text-align: right;
+    color: __FG__;
+  }
+  .action-hidden { color: __MUTED__; letter-spacing: 2px; }
+  .action-matched { color: __GREEN__; }
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: __STATUS_BG__;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .status-left { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: __MUTED__; display: inline-block;
+  }
+  .dot.speaking { background: #3B82F6; }
+  .dot.listening { background: #EF4444; animation: pulse 1.1s infinite; }
+  .dot.matched { background: __GREEN__; }
+  @keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.35); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .heard {
+    font-style: italic;
+    color: __MUTED__;
+    max-width: 58%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  button {
+    cursor: pointer;
+    border-radius: 7px;
+    border: 1px solid __BORDER__;
+    background: __BTN_BG__;
+    color: __FG__;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 12px;
+    transition: opacity 0.15s ease;
+  }
+  button:hover { opacity: 0.86; }
+  button.primary {
+    background: __GREEN__;
+    color: #000000;
+    border-color: __GREEN__;
+  }
+  .list-wrap {
+    max-height: 145px;
+    overflow-y: auto;
+    border-top: 1px solid __BORDER__;
+    padding-top: 8px;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    padding: 4px 6px;
+    border-radius: 5px;
+  }
+  .row.active { background: __ACTIVE_ROW__; font-weight: 700; }
+  .row.done .r-act { color: __GREEN__; font-weight: 700; }
+  .r-act { text-align: right; font-weight: 700; }
+  .hint {
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: __MUTED__;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="top-row">
+    <span class="badge" id="modeBadge"></span>
+    <span class="progress-text" id="progressText"></span>
+  </div>
+
+  <div class="prompt-box">
+    <div class="sub-label" id="subLabel"></div>
+    <div class="line-flex">
+      <div class="item-text" id="itemText"></div>
+      <div class="action-text" id="actionText"></div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-left">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Ready — click Start to begin</span>
+    </div>
+    <div class="heard" id="heardText"></div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="startBtn">▶ Start Voice Session</button>
+    <button id="repeatBtn">🔁 Repeat</button>
+    <button id="confirmBtn">✓ Confirm</button>
+    <button id="skipBtn">⏭ Skip</button>
+    <button id="restartBtn">↺ Restart</button>
+  </div>
+
+  <div class="list-wrap" id="itemList"></div>
+  <div class="hint" id="hintText"></div>
+</div>
+
+<script>
+const CFG = __CONFIG_JSON__;
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+let idx = 0;
+let running = false;
+let paused = false;
+let phase = "idle"; // idle | speaking | listening | matched | done
+let revealed = false;
+let fatalMicError = false;
+let currentAudio = null;
+let recognition = null;
+let audioCtx = null;
+let advanceTimer = null;
+let restartRecTimer = null;
+let doneMap = new Array(CFG.items.length).fill(false);
+
+const modeBadge = document.getElementById("modeBadge");
+const progressText = document.getElementById("progressText");
+const subLabel = document.getElementById("subLabel");
+const itemText = document.getElementById("itemText");
+const actionText = document.getElementById("actionText");
+const statusDot = document.getElementById("statusDot");
+const statusText = document.getElementById("statusText");
+const heardText = document.getElementById("heardText");
+const startBtn = document.getElementById("startBtn");
+const repeatBtn = document.getElementById("repeatBtn");
+const confirmBtn = document.getElementById("confirmBtn");
+const skipBtn = document.getElementById("skipBtn");
+const restartBtn = document.getElementById("restartBtn");
+const itemList = document.getElementById("itemList");
+const hintText = document.getElementById("hintText");
+
+modeBadge.textContent = CFG.strictMode
+  ? "🎙️ STRICT RECALL — Speak Response"
+  : "🎙️ CONFIRM MODE — Say 'Checked'";
+
+hintText.textContent = CFG.strictMode
+  ? "Luna reads the left-hand item. Speak the right-hand response to advance. Voice commands: 'repeat', 'skip'."
+  : "Luna reads the full line. Say 'checked' (or 'set', 'roger', 'next') to advance. Voice commands: 'repeat', 'skip'.";
+
+const CONFIRM_WORDS = new Set([
+  "checked", "check", "set", "roger", "next", "done",
+  "copy", "confirm", "confirmed", "ok", "okay", "yes", "checked."
+]);
+
+const FILLER_WORDS = new Set([
+  "the", "is", "are", "a", "an", "to", "of", "for", "and", "with", "be"
+]);
+
+function normalizeText(str) {
+  let s = (str || "").toLowerCase();
+  s = s.replace(/°/g, " degrees ");
+  s = s.replace(/&/g, " and ");
+  s = s.replace(/[-/]/g, " ");
+  s = s.replace(/cut\s*off/g, "cutoff");
+  s = s.replace(/q\s*(and|n)\s*h/g, "qnh");
+  s = s.replace(/r\s*p\s*m/g, "rpm");
+  s = s.replace(/k\s*i\s*a\s*s/g, "knots");
+  s = s.replace(/kias/g, "knots");
+  s = s.replace(/kts/g, "knots");
+  s = s.replace(/stby/g, "standby");
+  s = s.replace(/hdg/g, "heading");
+  s = s.replace(/crs/g, "course");
+  s = s.replace(/kneel/g, "nil");
+  s = s.replace(/stabilized/g, "stabilised");
+  s = s.replace(/(\d+)mm/g, "$1 mm");
+  s = s.replace(/\bmillimeters?\b|\bmillimetres?\b/g, "mm");
+  s = s.replace(/\bone\s+thousand\b/g, "1000");
+  s = s.replace(/\bthree\s+thousand\b/g, "3000");
+  s = s.replace(/\beighteen\s+hundred\b/g, "1800");
+  s = s.replace(/\bone\s+thousand\s+eight\s+hundred\b/g, "1800");
+  s = s.replace(/\bsix\s+hundred\b/g, "600");
+  s = s.replace(/\beight\s+hundred\b/g, "800");
+  s = s.replace(/\bone\s+seventy\s+five\b|\bone\s+hundred\s+seventy\s+five\b/g, "175");
+  s = s.replace(/\bone\s+fifty\b|\bone\s+hundred\s+fifty\b/g, "150");
+  s = s.replace(/\bone\s+ten\b|\bone\s+hundred\s+ten\b/g, "110");
+  s = s.replace(/\beighty\s+five\b/g, "85");
+  s = s.replace(/\bsixty\b/g, "60");
+  s = s.replace(/\bfifty\b/g, "50");
+  s = s.replace(/\bthirty\b/g, "30");
+  s = s.replace(/\btwenty\s+eight\b/g, "28");
+  s = s.replace(/\btwenty\s+five\b/g, "25");
+  s = s.replace(/\btwenty\s+four\b/g, "24");
+  s = s.replace(/\btwenty\b/g, "20");
+  s = s.replace(/\bten\b/g, "10");
+  s = s.replace(/\beight\b/g, "8");
+  s = s.replace(/\bsix\b/g, "6");
+  s = s.replace(/\bthree\b/g, "3");
+  s = s.replace(/\btwo\b/g, "2");
+  s = s.replace(/\bone\b/g, "1");
+  s = s.replace(/\bzero\b/g, "0");
+  s = s.replace(/[^a-z0-9\s]/g, " ");
+  return s.replace(/\s+/g, " ").trim();
+}
+
+function tokenMatch(spokenTok, targetTok) {
+  if (spokenTok === targetTok) return true;
+  if (targetTok === "nil" && (spokenTok === "none" || spokenTok === "0" || spokenTok === "no")) return true;
+  if (targetTok === "crs" && (spokenTok === "course" || spokenTok === "gps")) return true;
+  if (targetTok === "course" && spokenTok === "crs") return true;
+  if (targetTok === "heading" && spokenTok === "hdg") return true;
+  if (targetTok === "mm" && spokenTok === "millimeter") return true;
+  if (targetTok.length >= 4 && spokenTok.length >= 4) {
+    if (spokenTok.startsWith(targetTok.slice(0, 4)) || targetTok.startsWith(spokenTok.slice(0, 4))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function matchesSingleOption(spokenNorm, optionRaw) {
+  const optNorm = normalizeText(optionRaw);
+  if (!optNorm) return false;
+  let targetTokens = optNorm.split(" ");
+  if (targetTokens.length > 2) {
+    const filtered = targetTokens.filter(t => !FILLER_WORDS.has(t));
+    if (filtered.length > 0) targetTokens = filtered;
+  }
+  const spokenTokens = spokenNorm.split(" ").filter(Boolean);
+  if (spokenTokens.length === 0) return false;
+
+  let hits = 0;
+  for (const t of targetTokens) {
+    if (spokenTokens.some(s => tokenMatch(s, t))) hits++;
+  }
+
+  let needed;
+  if (targetTokens.length === 1) needed = 1;
+  else if (targetTokens.length === 2) {
+    needed = (targetTokens[1] === "range" || targetTokens[1] === "degrees" || targetTokens[1] === "feet" || targetTokens[1] === "miles") ? 1 : 2;
+  } else if (targetTokens.length <= 4) {
+    needed = Math.ceil(targetTokens.length * 0.6);
+  } else {
+    needed = Math.ceil(targetTokens.length * 0.45);
+  }
+  return hits >= needed;
+}
+
+function checkSpeechMatch(transcript, itemObj, isFinal) {
+  const norm = normalizeText(transcript);
+  if (!norm) return null;
+
+  if (/\b(repeat|say again)\b/.test(norm)) return "REPEAT";
+  if (/\bskip\b/.test(norm)) return "SKIP";
+
+  if (!CFG.strictMode) {
+    const tokens = norm.split(" ");
+    if (tokens.some(t => CONFIRM_WORDS.has(t))) return "MATCH";
+    return null;
+  }
+
+  // Pure variable placeholder like [WAYPOINT]
+  if (/^\[[^\]]+\]$/.test(itemObj.action.trim()) && !/\bOR\b/i.test(itemObj.action)) {
+    return (isFinal && norm.length >= 2) ? "MATCH" : null;
+  }
+
+  // Choice items containing "OR"
+  const clean = itemObj.cleanAction;
+  if (/\bOR\b/i.test(clean)) {
+    const options = clean.split(/\bOR\b/i).map(s => s.trim()).filter(Boolean);
+    if (options.some(opt => matchesSingleOption(norm, opt))) return "MATCH";
+    return null;
+  }
+
+  if (matchesSingleOption(norm, clean)) return "MATCH";
+  return null;
+}
+
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) audioCtx = new Ctx();
+  }
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume().catch(() => {});
+  }
+}
+
+function playBeep(type) {
+  if (!CFG.enableBeep) return;
+  try {
+    ensureAudioCtx();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    if (type === "tick") {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } else if (type === "complete") {
+      [523.25, 783.99].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now + i * 0.14);
+        gain.gain.setValueAtTime(0.15, now + i * 0.14);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + i * 0.14);
+        osc.stop(now + i * 0.14 + 0.25);
+      });
+    }
+  } catch (e) {}
+}
+
+function stopRecognition() {
+  clearTimeout(restartRecTimer);
+  if (recognition) {
+    try {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.abort();
+    } catch (e) {}
+    recognition = null;
+  }
+}
+
+function stopAudio() {
+  clearTimeout(advanceTimer);
+  if (currentAudio) {
+    try {
+      currentAudio.onended = null;
+      currentAudio.pause();
+      currentAudio = null;
+    } catch (e) {}
+  }
+}
+
+function setStatus(dotClass, text) {
+  statusDot.className = "dot" + (dotClass ? " " + dotClass : "");
+  statusText.textContent = text;
+}
+
+function renderUI() {
+  const doneCount = doneMap.filter(Boolean).length;
+  progressText.textContent = doneCount + " / " + CFG.items.length + " done";
+
+  if (phase === "done") {
+    subLabel.textContent = "CHECKLIST COMPLETE";
+    itemText.textContent = CFG.closingText;
+    actionText.textContent = "✓";
+    actionText.className = "action-text action-matched";
+  } else {
+    const cur = CFG.items[idx];
+    subLabel.textContent = cur.subtitle ? cur.subtitle : CFG.sectionTitle;
+    itemText.textContent = cur.num + " " + cur.item;
+
+    if (CFG.strictMode && !revealed && !doneMap[idx]) {
+      actionText.textContent = "•••••";
+      actionText.className = "action-text action-hidden";
+    } else {
+      actionText.textContent = cur.action;
+      actionText.className = "action-text" + ((doneMap[idx] || phase === "matched") ? " action-matched" : "");
+    }
+  }
+
+  startBtn.textContent = running && !paused ? "⏸ Pause" : (phase === "done" ? "↺ Run Again" : "▶ Start Voice Session");
+
+  itemList.innerHTML = "";
+  CFG.items.forEach((it, i) => {
+    const row = document.createElement("div");
+    row.className = "row" + (i === idx && phase !== "done" ? " active" : "") + (doneMap[i] ? " done" : "");
+    const left = document.createElement("span");
+    left.textContent = (doneMap[i] ? "✓ " : "") + it.num + " " + it.item;
+    const right = document.createElement("span");
+    right.className = "r-act";
+    right.textContent = (CFG.strictMode && !doneMap[i]) ? "•••••" : it.action;
+    row.appendChild(left);
+    row.appendChild(right);
+    row.onclick = () => {
+      if (running) {
+        stopRecognition();
+        stopAudio();
+        runItem(i);
+      } else {
+        idx = i;
+        phase = "idle";
+        renderUI();
+      }
+    };
+    itemList.appendChild(row);
+    if (i === idx && phase !== "done") {
+      row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  });
+}
+
+function startListening(targetIdx) {
+  if (!running || paused || idx !== targetIdx) return;
+  stopRecognition();
+
+  if (!SpeechRec) {
+    setStatus("", "Speech recognition requires Chrome or Edge — use ✓ Confirm");
+    return;
+  }
+  if (fatalMicError) {
+    setStatus("", "Mic blocked — allow microphone access or use ✓ Confirm");
+    return;
+  }
+
+  phase = "listening";
+  setStatus("listening", CFG.strictMode ? "Listening for response..." : "Listening for 'Checked'...");
+
+  try {
+    recognition = new SpeechRec();
+    recognition.lang = "en-SG";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
+
+    recognition.onresult = (event) => {
+      if (!running || paused || phase !== "listening" || idx !== targetIdx) return;
+      let latestTranscript = "";
+
+      for (let r = event.resultIndex; r < event.results.length; r++) {
+        const res = event.results[r];
+        const isFinal = res.isFinal;
+        for (let a = 0; a < res.length; a++) {
+          const text = res[a].transcript || "";
+          if (a === 0) latestTranscript = text;
+          const decision = checkSpeechMatch(text, CFG.items[targetIdx], isFinal);
+          if (decision === "MATCH") {
+            heardText.textContent = 'Heard: "' + text.trim() + '"';
+            completeItem(targetIdx, false);
+            return;
+          } else if (decision === "REPEAT" && isFinal) {
+            heardText.textContent = 'Heard: "' + text.trim() + '"';
+            stopRecognition();
+            runItem(targetIdx);
+            return;
+          } else if (decision === "SKIP" && isFinal) {
+            heardText.textContent = 'Heard: "' + text.trim() + '"';
+            completeItem(targetIdx, true);
+            return;
+          }
+        }
+      }
+      if (latestTranscript.trim()) {
+        heardText.textContent = 'Heard: "' + latestTranscript.trim() + '"';
+      }
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        fatalMicError = true;
+        setStatus("", "Mic permission denied — allow mic in browser bar or use ✓ Confirm");
+        stopRecognition();
+      }
+    };
+
+    recognition.onend = () => {
+      if (running && !paused && phase === "listening" && idx === targetIdx && !fatalMicError) {
+        restartRecTimer = setTimeout(() => startListening(targetIdx), 250);
+      }
+    };
+
+    recognition.start();
+  } catch (e) {
+    setStatus("", "Could not start mic — use ✓ Confirm");
+  }
+}
+
+function runItem(targetIdx) {
+  stopRecognition();
+  stopAudio();
+
+  if (targetIdx >= CFG.items.length) {
+    finishSession();
+    return;
+  }
+
+  idx = targetIdx;
+  revealed = false;
+  heardText.textContent = "";
+  phase = "speaking";
+  setStatus("speaking", "Luna speaking...");
+  renderUI();
+
+  const b64 = CFG.items[idx].audioB64;
+  if (!b64) {
+    advanceTimer = setTimeout(() => startListening(idx), 250);
+    return;
+  }
+
+  currentAudio = new Audio("data:audio/mp3;base64," + b64);
+  currentAudio.playbackRate = CFG.speed;
+  currentAudio.onended = () => {
+    if (!running || paused || idx !== targetIdx) return;
+    advanceTimer = setTimeout(() => startListening(targetIdx), 220);
+  };
+  currentAudio.play().catch(() => {
+    running = false;
+    phase = "idle";
+    setStatus("", "Click ▶ Start Voice Session to enable audio & mic");
+    renderUI();
+  });
+}
+
+function completeItem(targetIdx, skipped) {
+  stopRecognition();
+  stopAudio();
+  doneMap[targetIdx] = true;
+  revealed = true;
+  phase = "matched";
+
+  const isLast = targetIdx >= CFG.items.length - 1;
+  if (!skipped && !isLast) {
+    playBeep("tick");
+  }
+  setStatus("matched", skipped ? "Skipped" : "Checked!");
+  renderUI();
+
+  advanceTimer = setTimeout(() => {
+    if (running && !paused) {
+      runItem(targetIdx + 1);
+    }
+  }, 450);
+}
+
+function finishSession() {
+  stopRecognition();
+  stopAudio();
+  running = false;
+  paused = false;
+  phase = "done";
+  playBeep("complete");
+  setStatus("matched", "Checklist complete!");
+  renderUI();
+
+  if (CFG.closingAudio) {
+    currentAudio = new Audio("data:audio/mp3;base64," + CFG.closingAudio);
+    currentAudio.playbackRate = CFG.speed;
+    currentAudio.play().catch(() => {});
+  }
+}
+
+startBtn.onclick = () => {
+  ensureAudioCtx();
+  fatalMicError = false;
+  if (phase === "done") {
+    doneMap = new Array(CFG.items.length).fill(false);
+    idx = 0;
+    running = true;
+    paused = false;
+    runItem(0);
+    return;
+  }
+  if (!running || paused) {
+    running = true;
+    paused = false;
+    runItem(idx);
+  } else {
+    paused = true;
+    stopRecognition();
+    stopAudio();
+    setStatus("", "Paused");
+    renderUI();
+  }
+};
+
+repeatBtn.onclick = () => {
+  ensureAudioCtx();
+  if (phase === "done") return;
+  running = true;
+  paused = false;
+  runItem(idx);
+};
+
+confirmBtn.onclick = () => {
+  ensureAudioCtx();
+  if (phase === "done") return;
+  if (!running) {
+    running = true;
+    paused = false;
+  }
+  completeItem(idx, false);
+};
+
+skipBtn.onclick = () => {
+  ensureAudioCtx();
+  if (phase === "done") return;
+  if (!running) {
+    running = true;
+    paused = false;
+  }
+  completeItem(idx, true);
+};
+
+restartBtn.onclick = () => {
+  ensureAudioCtx();
+  stopRecognition();
+  stopAudio();
+  doneMap = new Array(CFG.items.length).fill(false);
+  idx = 0;
+  running = true;
+  paused = false;
+  fatalMicError = false;
+  runItem(0);
+};
+
+renderUI();
+</script>
+</body>
+</html>
+"""
+
+
+def render_voice_runner(section, voice, speed, enable_beep, strict_mode, night_mode):
+    clean_title = re.sub(r"^[AB]\d+\.\d+\s*", "", section["title"]).strip()
+    closing_text = section.get("footer") or f"{clean_title} checklist complete"
+
+    flat_items = []
+    prompts = []
+    for subsection in section["subsections"]:
+        sub = subsection.get("subtitle")
+        for num, item, action in subsection["items"]:
+            clean_item = clean_for_speech(item)
+            clean_action = clean_for_speech(action)
+            prompt = f"{clean_item}." if strict_mode else f"{clean_item}, {clean_action}."
+            flat_items.append(
+                {
+                    "num": num,
+                    "item": item,
+                    "action": action,
+                    "cleanAction": clean_action,
+                    "subtitle": sub,
+                }
+            )
+            prompts.append(prompt)
+
+    prompts.append(closing_text)
+
+    with st.spinner("Preparing Luna's voice prompts..."):
+        clips = generate_tts_batch_base64(tuple(prompts), voice)
+
+    for i, item_obj in enumerate(flat_items):
+        item_obj["audioB64"] = clips[i] if i < len(clips) else ""
+    closing_audio = clips[-1] if clips else ""
+
+    config = {
+        "sectionTitle": section["title"],
+        "strictMode": strict_mode,
+        "speed": speed,
+        "enableBeep": enable_beep,
+        "closingText": closing_text,
+        "closingAudio": closing_audio,
+        "items": flat_items,
+    }
+
+    if night_mode:
+        palette = {
+            "__FG__": "#E6EDF3",
+            "__CARD_BG__": "#161B22",
+            "__BORDER__": "#30363D",
+            "__BADGE_BG__": "#21262D",
+            "__BADGE_FG__": "#E6EDF3",
+            "__MUTED__": "#9CA3AF",
+            "__PROMPT_BG__": "#0E1117",
+            "__STATUS_BG__": "#0E1117",
+            "__BTN_BG__": "#21262D",
+            "__GREEN__": "#00E676",
+            "__ACTIVE_ROW__": "rgba(255, 255, 255, 0.08)",
+        }
+    else:
+        palette = {
+            "__FG__": "#111827",
+            "__CARD_BG__": "#F9FAFB",
+            "__BORDER__": "#D1D5DB",
+            "__BADGE_BG__": "#E5E7EB",
+            "__BADGE_FG__": "#111827",
+            "__MUTED__": "#6B7280",
+            "__PROMPT_BG__": "#FFFFFF",
+            "__STATUS_BG__": "#FFFFFF",
+            "__BTN_BG__": "#FFFFFF",
+            "__GREEN__": "#00C853",
+            "__ACTIVE_ROW__": "rgba(0, 0, 0, 0.06)",
+        }
+
+    html = VOICE_RUNNER_TEMPLATE
+    for token, val in palette.items():
+        html = html.replace(token, val)
+    config_json = json.dumps(config).replace("</", "<\\/")
+    html = html.replace("__CONFIG_JSON__", config_json)
+
+    components.html(html, height=400)
+
+
 def render_subsection(
     section_title,
     sub_idx,
@@ -1205,6 +2011,8 @@ if "audio_event" not in st.session_state:
     st.session_state.audio_event = None
 if "active_section_audio" not in st.session_state:
     st.session_state.active_section_audio = None
+if "active_voice_runner" not in st.session_state:
+    st.session_state.active_voice_runner = None
 
 st.title("C172R&S G1000 Normal Checklist")
 
@@ -1221,6 +2029,11 @@ with st.sidebar:
     selected_voice_label = st.selectbox("Voice", list(VOICE_OPTIONS.keys()))
     selected_voice = VOICE_OPTIONS[selected_voice_label]
     speech_speed = st.slider("Speaking Speed", 0.80, 1.30, 1.05, 0.05, format="%.2fx")
+    strict_voice_recall = st.toggle(
+        "Voice Runner: Strict Recall Mode",
+        value=False,
+        help="OFF: Luna reads the full line and waits for 'Checked'. ON: Luna reads only the left-hand item and waits for you to speak the response.",
+    )
 
     if st.button("⬇️ Preload All Section Audio", use_container_width=True):
         all_sections = [
@@ -1392,8 +2205,11 @@ for section in sections_to_show:
     done_count = sum(1 for k in section_keys if st.session_state.get(k, False))
     total_count = len(section_keys)
     is_playing = st.session_state.active_section_audio == section["title"]
+    is_voice_running = st.session_state.active_voice_runner == section["title"]
 
-    hdr_col1, hdr_col2, hdr_col3 = st.columns([3.4, 1.1, 1.1], vertical_alignment="center")
+    hdr_col1, hdr_col2, hdr_col3, hdr_col4 = st.columns(
+        [2.9, 1.0, 1.1, 1.0], vertical_alignment="center"
+    )
     with hdr_col1:
         st.subheader(f"{section['title']}  `{done_count}/{total_count}`")
     with hdr_col2:
@@ -1404,9 +2220,21 @@ for section in sections_to_show:
         else:
             if st.button("🔊 Play", key=f"play_sec_{section['title']}", use_container_width=True):
                 st.session_state.active_section_audio = section["title"]
+                st.session_state.active_voice_runner = None
                 st.session_state.audio_event = None
                 st.rerun()
     with hdr_col3:
+        if is_voice_running:
+            if st.button("⏹ End", key=f"end_vr_{section['title']}", use_container_width=True):
+                st.session_state.active_voice_runner = None
+                st.rerun()
+        else:
+            if st.button("🎙️ Voice", key=f"start_vr_{section['title']}", use_container_width=True):
+                st.session_state.active_voice_runner = section["title"]
+                st.session_state.active_section_audio = None
+                st.session_state.audio_event = None
+                st.rerun()
+    with hdr_col4:
         st.button(
             "↺ Reset",
             key=f"reset_sec_{section['title']}",
@@ -1417,6 +2245,16 @@ for section in sections_to_show:
 
     if is_playing:
         render_section_player(section, selected_voice, speech_speed)
+
+    if is_voice_running:
+        render_voice_runner(
+            section,
+            selected_voice,
+            speech_speed,
+            enable_beep,
+            strict_voice_recall,
+            night_mode,
+        )
 
     if section.get("caution"):
         st.warning(f"**CAUTION:** {section['caution']}")
