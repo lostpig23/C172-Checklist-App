@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.set_page_config(page_title="C172R&S G1000 Checklist", layout="centered")
+st.set_page_config(page_title="C172R&S G1000 Checklist Rev. 3.0", layout="centered")
 
 CHECKLIST_PARTS = {
     "PART A - GROUND-BASED CHECKLISTS": [
