@@ -1,6 +1,9 @@
+import asyncio
+import base64
 import json
 import re
 import time
+import edge_tts
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -18,6 +21,13 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+VOICE_OPTIONS = {
+    "Sonia (British Female)": "en-GB-SoniaNeural",
+    "Luna (Singapore Female)": "en-SG-LunaNeural",
+    "Natasha (Australian Female)": "en-AU-NatashaNeural",
+    "Aria (US Female)": "en-US-AriaNeural",
+}
 
 CHECKLIST_PARTS = {
     "PART A - GROUND-BASED CHECKLISTS": [
@@ -972,8 +982,21 @@ CHECKLIST_PARTS = {
 }
 
 
+@st.cache_data(show_spinner=False)
+def generate_tts_base64(text, voice):
+    async def _gen():
+        communicate = edge_tts.Communicate(text, voice, rate="+5%")
+        audio_bytes = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_bytes += chunk["data"]
+        return audio_bytes
+
+    audio_data = asyncio.run(_gen())
+    return base64.b64encode(audio_data).decode("utf-8")
+
+
 def clean_for_speech(text):
-    # Remove (rounded brackets) since they are not verbalised, keep text inside [square brackets]
     text = re.sub(r"\s*\([^)]*\)", "", text)
     text = text.replace("[", "").replace("]", "")
     return " ".join(text.split())
@@ -988,7 +1011,7 @@ def reset_all():
 
 def on_checkbox_change(key, item, action, section_title, footer, section_keys):
     if not st.session_state.get(key, False):
-        return  # Only play audio when checking, not unchecking
+        return
 
     spoken_item = f"{clean_for_speech(item)}, {clean_for_speech(action)}"
     all_done = all(st.session_state.get(k, False) for k in section_keys)
@@ -1008,23 +1031,27 @@ def on_checkbox_change(key, item, action, section_title, footer, section_keys):
         }
 
 
-def play_audio_cue(event, enable_beep, enable_speech):
+def play_audio_cue(event, enable_beep, enable_speech, voice):
     if not event or (not enable_beep and not enable_speech):
         return
 
     event_type = json.dumps(event["type"])
-    spoken_text = json.dumps(event["text"])
     beep_flag = "true" if enable_beep else "false"
-    speech_flag = "true" if enable_speech else "false"
+
+    audio_b64 = ""
+    if enable_speech:
+        try:
+            audio_b64 = generate_tts_base64(event["text"], voice)
+        except Exception:
+            audio_b64 = ""
 
     js_code = f"""
     <script>
     // ts: {event["ts"]}
     (function() {{
         const playBeep = {beep_flag};
-        const playSpeech = {speech_flag};
         const type = {event_type};
-        const text = {spoken_text};
+        const audioB64 = "{audio_b64}";
 
         if (playBeep) {{
             try {{
@@ -1060,11 +1087,9 @@ def play_audio_cue(event, enable_beep, enable_speech):
             }} catch (e) {{}}
         }}
 
-        if (playSpeech && "speechSynthesis" in window) {{
-            window.speechSynthesis.cancel();
-            const utter = new SpeechSynthesisUtterance(text);
-            utter.rate = 1.05;
-            window.speechSynthesis.speak(utter);
+        if (audioB64) {{
+            const audio = new Audio("data:audio/mp3;base64," + audioB64);
+            audio.play().catch(() => {{}});
         }}
     }})();
     </script>
@@ -1122,6 +1147,8 @@ with st.sidebar:
     st.header("Audio Cues")
     enable_beep = st.toggle("Beeps & Completion Chime", value=True)
     enable_speech = st.toggle("Spoken Callouts", value=True)
+    selected_voice_label = st.selectbox("Voice", list(VOICE_OPTIONS.keys()))
+    selected_voice = VOICE_OPTIONS[selected_voice_label]
     st.divider()
     st.button("Reset All Checkboxes", on_click=reset_all, use_container_width=True)
 
@@ -1197,5 +1224,5 @@ for section in sections_to_show:
     st.divider()
 
 if st.session_state.audio_event:
-    play_audio_cue(st.session_state.audio_event, enable_beep, enable_speech)
+    play_audio_cue(st.session_state.audio_event, enable_beep, enable_speech, selected_voice)
     st.session_state.audio_event = None
