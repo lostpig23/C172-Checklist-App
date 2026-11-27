@@ -2127,10 +2127,19 @@ if night_mode:
     [data-testid="stSidebar"] hr {
         border-color: #30363D !important;
     }
-    [data-testid="stAlert"] {
-        background-color: #161B22 !important;
-        border: 1px solid #30363D !important;
-        color: #E6EDF3 !important;
+    [data-testid="stAlert"],
+    [data-testid="stNotification"],
+    div[class*="stAlert"] {
+        background-color: #DC2626 !important;
+        background: #DC2626 !important;
+        border: 2px solid #991B1B !important;
+        color: #000000 !important;
+    }
+    [data-testid="stAlert"] *,
+    [data-testid="stNotification"] *,
+    div[class*="stAlert"] * {
+        color: #000000 !important;
+        font-weight: 700 !important;
     }
     mark {
         background-color: #EAB308 !important;
