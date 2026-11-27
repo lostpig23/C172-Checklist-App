@@ -24,7 +24,7 @@ CHECKLIST_PARTS = {
                 {
                     "subtitle": None,
                     "items": [
-                        ("1.", "Aircraft Position", "NO OBSTRUCTIONS"),
+                        ("1.", "Aircraft Position", "No OBSTRUCTIONS"),
                         ("2.", "Fuel Quantity", "SUFFICIENT"),
                         ("3.", "Fuel Drain", "COMPLETE"),
                         ("4.", "Fuel Leaks", "NIL"),
