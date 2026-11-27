@@ -1056,6 +1056,17 @@ def reset_section(section_keys, section_title):
         st.session_state.active_voice_runner = None
 
 
+def check_all_section(section_keys, section_title, footer):
+    for key in section_keys:
+        st.session_state[key] = True
+    closing = footer if footer else f"{section_title} complete"
+    st.session_state.audio_event = {
+        "type": "complete",
+        "text": closing,
+        "ts": time.time(),
+    }
+
+
 def on_item_click(key, item, action, section_title, footer, section_keys):
     new_state = not st.session_state.get(key, False)
     st.session_state[key] = new_state
@@ -2232,8 +2243,8 @@ for section in sections_to_show:
     is_playing = st.session_state.active_section_audio == section["title"]
     is_voice_running = st.session_state.active_voice_runner == section["title"]
 
-    hdr_col1, hdr_col2, hdr_col3, hdr_col4 = st.columns(
-        [2.9, 1.0, 1.1, 1.0], vertical_alignment="center"
+    hdr_col1, hdr_col2, hdr_col3, hdr_col4, hdr_col5 = st.columns(
+        [2.5, 0.95, 1.05, 0.95, 0.95], vertical_alignment="center"
     )
     with hdr_col1:
         st.subheader(f"{section['title']}  `{done_count}/{total_count}`")
@@ -2260,6 +2271,14 @@ for section in sections_to_show:
                 st.session_state.audio_event = None
                 st.rerun()
     with hdr_col4:
+        st.button(
+            "✓ All",
+            key=f"chkall_sec_{section['title']}",
+            on_click=check_all_section,
+            args=(section_keys, section["title"], section.get("footer")),
+            use_container_width=True,
+        )
+    with hdr_col5:
         st.button(
             "↺ Reset",
             key=f"reset_sec_{section['title']}",
