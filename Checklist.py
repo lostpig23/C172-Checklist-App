@@ -24,7 +24,7 @@ CHECKLIST_PARTS = {
                 {
                     "subtitle": None,
                     "items": [
-                        ("1.", "Aircraft Position", "No OBSTRUCTIONS"),
+                        ("1.", "Aircraft Position", "NO OBSTRUCTIONS"),
                         ("2.", "Fuel Quantity", "SUFFICIENT"),
                         ("3.", "Fuel Drain", "COMPLETE"),
                         ("4.", "Fuel Leaks", "NIL"),
@@ -1067,6 +1067,13 @@ def check_all_section(section_keys, section_title, footer):
     }
 
 
+def jump_to_section(target_title):
+    st.session_state.selected_section = target_title
+    st.session_state.active_section_audio = None
+    st.session_state.active_voice_runner = None
+    st.session_state.audio_event = None
+
+
 def on_item_click(key, item, action, section_title, footer, section_keys):
     new_state = not st.session_state.get(key, False)
     st.session_state[key] = new_state
@@ -2047,7 +2054,13 @@ with st.sidebar:
     st.header("Navigation")
     selected_part = st.radio("Select Part", list(CHECKLIST_PARTS.keys()))
     section_titles = ["Show All"] + [s["title"] for s in CHECKLIST_PARTS[selected_part]]
-    selected_section = st.selectbox("Jump to Checklist", section_titles)
+    if st.session_state.get("selected_section") not in section_titles:
+        st.session_state.selected_section = "Show All"
+    selected_section = st.selectbox(
+        "Jump to Checklist",
+        section_titles,
+        key="selected_section",
+    )
     st.divider()
 
     st.header("Audio Cues")
@@ -2380,6 +2393,32 @@ for section in sections_to_show:
         st.info(f"**NOTE:** {section['post_note']}")
 
     st.divider()
+
+if selected_section != "Show All":
+    part_titles = [s["title"] for s in CHECKLIST_PARTS[selected_part]]
+    curr_idx = part_titles.index(selected_section)
+
+    nav_col1, nav_col2 = st.columns(2)
+    with nav_col1:
+        if curr_idx > 0:
+            prev_title = part_titles[curr_idx - 1]
+            st.button(
+                f"← {prev_title}",
+                key="nav_prev_sec",
+                on_click=jump_to_section,
+                args=(prev_title,),
+                use_container_width=True,
+            )
+    with nav_col2:
+        if curr_idx < len(part_titles) - 1:
+            next_title = part_titles[curr_idx + 1]
+            st.button(
+                f"{next_title} →",
+                key="nav_next_sec",
+                on_click=jump_to_section,
+                args=(next_title,),
+                use_container_width=True,
+            )
 
 if st.session_state.audio_event:
     play_audio_cue(
